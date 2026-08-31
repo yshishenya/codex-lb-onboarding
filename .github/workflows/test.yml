@@ -1,0 +1,62 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shell:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax
+        run: bash -n install.sh
+      - name: Dry run
+        run: bash install.sh --dry-run --no-desktop
+      - name: Isolated setup and idempotency
+        run: bash tests/test-install.sh
+
+  powershell-51:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse, dry run, and isolated setup
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path .\Install-CodexLb.ps1),
+            [ref]$tokens,
+            [ref]$errors
+          )
+          if ($errors.Count) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          .\Install-CodexLb.ps1 -DryRun -NoDesktop
+          .\tests\Test-InstallCodexLb.ps1
+
+  powershell-7:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse, dry run, and isolated setup
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path .\Install-CodexLb.ps1),
+            [ref]$tokens,
+            [ref]$errors
+          )
+          if ($errors.Count) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          .\Install-CodexLb.ps1 -DryRun -NoDesktop
+          .\tests\Test-InstallCodexLb.ps1
