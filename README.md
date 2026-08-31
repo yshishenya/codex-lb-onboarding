@@ -8,10 +8,6 @@
 Этот установщик подключает **Codex Desktop или Codex CLI** к Codex-LB.
 Нужно выполнить одну команду и один раз ввести выданный вам ключ.
 
-> [!IMPORTANT]
-> Docker, контейнеры и отдельный сервер на вашем компьютере не нужны.
-> Установщик меняет только настройки клиента Codex вашего пользователя.
-
 ## Выберите вашу систему
 
 | Если у вас | Перейдите к инструкции |
@@ -40,7 +36,7 @@
 Скопируйте всю строку ниже:
 
 ```powershell
-irm https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0.0/Install-CodexLb.ps1 | iex
+irm https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/Install-CodexLb.ps1 | iex
 ```
 
 Вернитесь в PowerShell, вставьте строку сочетанием <kbd>Ctrl</kbd> +
@@ -85,7 +81,7 @@ irm https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0.0/Inst
 Скопируйте всю строку ниже:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0.0/install.sh | bash
+curl -fsSL https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/install.sh | bash
 ```
 
 Вернитесь в Терминал, вставьте строку сочетанием <kbd>Command</kbd> +
@@ -151,45 +147,9 @@ curl -fsSL https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0
 обновит CLI и аккуратно обновит настройки. Старый файл настроек сохранится
 рядом с именем вида `config.toml.backup-20260831-120000`.
 
-## Если что-то не получилось
+## Если появилась ошибка
 
-### Ключ вводится, но на экране ничего нет
-
-Это ожидаемое поведение. Вставьте ключ и нажмите <kbd>Enter</kbd>.
-
-### Появилось сообщение `Codex-LB rejected the API key`
-
-Ключ неверный или больше не действует. Запросите новый ключ у администратора
-и запустите установщик повторно.
-
-### Нет Luna или Terra
-
-Установщик завершится с понятным сообщением, если одна из моделей недоступна.
-Передайте это сообщение администратору Codex-LB.
-
-### Windows показывает ошибку синтаксиса PowerShell
-
-Убедитесь, что вы запускаете команду из раздела [Windows](#windows), а не
-старый скачанный файл. Текущий Windows-установщик состоит только из ASCII-
-символов и проверяется в Windows PowerShell 5.1 и PowerShell 7.
-
-### Codex уже установлен как приложение, но команды `codex` нет
-
-Это нормальная ситуация. Codex Desktop и Codex CLI проверяются отдельно.
-Для настройки установленного Desktop наличие отдельной команды `codex` не
-обязательно.
-
-### Codex просит войти в ChatGPT
-
-При корректном файле ключа и конфигурации Codex-LB отдельный вход не нужен.
-Полностью закройте все окна Codex и запустите установщик повторно. Он проверит
-ключ и исправит параметр авторизации провайдера.
-
-### Windows открыл браузер и скачал `ChatGPT Installer.exe`
-
-Так происходит, если автоматическая установка Microsoft Store недоступна.
-Нажмите **Open file** в списке загрузок Edge и завершите официальный установщик
-OpenAI. Настройки Codex-LB к этому моменту уже сохранены.
+Скопируйте весь текст ошибки и отправьте его администратору.
 
 ## Проверка без изменений
 
@@ -199,13 +159,13 @@ OpenAI. Настройки Codex-LB к этому моменту уже сохр
 **macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0.0/install.sh | bash -s -- --dry-run
+curl -fsSL https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/install.sh | bash -s -- --dry-run
 ```
 
 **Windows:** сначала скачайте файл, затем выполните:
 
 ```powershell
-irm https://raw.githubusercontent.com/yshishenya/codex-lb-onboarding/v1.0.0/Install-CodexLb.ps1 -OutFile $env:TEMP\Install-CodexLb.ps1
+irm https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/Install-CodexLb.ps1 -OutFile $env:TEMP\Install-CodexLb.ps1
 & $env:TEMP\Install-CodexLb.ps1 -DryRun
 ```
 

@@ -119,9 +119,9 @@ function Install-OrUpdate-CodexDesktop([bool]$AlreadyInstalled) {
         "--accept-source-agreements"
     )
     $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -NoNewWindow -PassThru
-    if (-not $process.WaitForExit(180000)) {
+    if (-not $process.WaitForExit(600000)) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        Write-Warning "Microsoft Store did not finish within 3 minutes"
+        Write-Warning "Microsoft Store did not finish within 10 minutes"
         return $false
     }
     if ($process.ExitCode -eq 0) { return $true }
