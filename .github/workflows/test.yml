@@ -11,7 +11,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Syntax
         run: bash -n install.sh
       - name: Dry run
@@ -22,7 +22,7 @@ jobs:
   powershell-51:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Parse, dry run, and isolated setup
         shell: powershell
         run: |
@@ -43,7 +43,7 @@ jobs:
   powershell-7:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Parse, dry run, and isolated setup
         shell: pwsh
         run: |
