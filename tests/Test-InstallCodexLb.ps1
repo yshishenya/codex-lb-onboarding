@@ -10,10 +10,23 @@ $oldCodexHome = $env:CODEX_HOME
 $oldPath = $env:PATH
 $oldProcessKey = $env:CODEX_LB_API_KEY
 $oldUserKey = [Environment]::GetEnvironmentVariable("CODEX_LB_API_KEY", "User")
+$oldProcessorArchitecture = $env:PROCESSOR_ARCHITECTURE
+$oldProcessorArchitectureWow = $env:PROCESSOR_ARCHITEW6432
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
+
+$tokens = $null
+$errors = $null
+$installerAst = [System.Management.Automation.Language.Parser]::ParseFile($installer, [ref]$tokens, [ref]$errors)
+$compatibilityFunction = $installerAst.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq "Add-WindowsPowerShellArchitectureCompatibility"
+}, $true)
+Assert-True ($null -ne $compatibilityFunction) "Architecture compatibility function was not found"
+. ([scriptblock]::Create($compatibilityFunction.Extent.Text))
 
 function global:Invoke-RestMethod {
     [CmdletBinding()]
@@ -31,6 +44,19 @@ function global:Invoke-RestMethod {
 }
 
 try {
+    $runtimeProbe = '$architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture'
+    $patchedProbe = Add-WindowsPowerShellArchitectureCompatibility $runtimeProbe
+    Assert-True (-not $patchedProbe.Contains($runtimeProbe)) "RuntimeInformation OSArchitecture probe was not replaced"
+
+    $env:PROCESSOR_ARCHITEW6432 = $null
+    $env:PROCESSOR_ARCHITECTURE = "ARM64"
+    $armArchitecture = & { param($source) . ([scriptblock]::Create($source)); $architecture } $patchedProbe
+    Assert-True ($armArchitecture -eq "Arm64") "ARM64 compatibility mapping is incorrect"
+
+    $env:PROCESSOR_ARCHITECTURE = "AMD64"
+    $x64Architecture = & { param($source) . ([scriptblock]::Create($source)); $architecture } $patchedProbe
+    Assert-True ($x64Architecture -eq "X64") "x64 compatibility mapping is incorrect"
+
     New-Item -ItemType Directory -Force -Path $binPath, $codexHome | Out-Null
     $fakeCodex = Join-Path $binPath "codex.cmd"
     [IO.File]::WriteAllText(
@@ -61,6 +87,8 @@ try {
     $env:CODEX_HOME = $oldCodexHome
     $env:PATH = $oldPath
     $env:CODEX_LB_API_KEY = $oldProcessKey
+    $env:PROCESSOR_ARCHITECTURE = $oldProcessorArchitecture
+    $env:PROCESSOR_ARCHITEW6432 = $oldProcessorArchitectureWow
     [Environment]::SetEnvironmentVariable("CODEX_LB_API_KEY", $oldUserKey, "User")
     Remove-Item Function:\Invoke-RestMethod -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $testRoot) {

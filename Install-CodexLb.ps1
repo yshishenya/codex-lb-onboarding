@@ -84,6 +84,17 @@ function Read-HiddenApiKey {
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
 }
 
+function Add-WindowsPowerShellArchitectureCompatibility([string]$Source) {
+    $runtimeProbe = '$architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture'
+    if (-not $Source.Contains($runtimeProbe)) { return $Source }
+
+    # Windows PowerShell 5.1 can load RuntimeInformation without exposing
+    # OSArchitecture. The official Codex bootstrap runs in strict mode, so that
+    # missing static property aborts an otherwise supported ARM64/x64 install.
+    $environmentProbe = '$architecture = if (($env:PROCESSOR_ARCHITEW6432, $env:PROCESSOR_ARCHITECTURE) -contains "ARM64") { "Arm64" } elseif (($env:PROCESSOR_ARCHITEW6432, $env:PROCESSOR_ARCHITECTURE) -contains "AMD64") { "X64" } else { $env:PROCESSOR_ARCHITECTURE }'
+    return $Source.Replace($runtimeProbe, $environmentProbe)
+}
+
 function Install-CodexCli {
     Write-Host "Installing the official Codex CLI..."
     $previous = $env:CODEX_NON_INTERACTIVE
@@ -95,6 +106,7 @@ function Install-CodexCli {
         } else {
             $source = [string]$response.Content
         }
+        $source = Add-WindowsPowerShellArchitectureCompatibility $source
         $script = [scriptblock]::Create($source)
         & $script
     } finally {
