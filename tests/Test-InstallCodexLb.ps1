@@ -29,7 +29,7 @@ $compatibilityFunction = $installerAst.Find({
 Assert-True ($null -ne $compatibilityFunction) "Architecture compatibility function was not found"
 . ([scriptblock]::Create($compatibilityFunction.Extent.Text))
 
-$script:TestModels = @(
+$global:CodexLbTestModels = @(
     [pscustomobject]@{ id = "gpt-6-astra" },
     [pscustomobject]@{ id = "gpt-reserve" },
     [pscustomobject]@{ id = "gpt-5.6-luna" },
@@ -45,7 +45,7 @@ function global:Invoke-RestMethod {
         [hashtable]$Headers,
         [int]$TimeoutSec
     )
-    return [pscustomobject]@{ data = $script:TestModels }
+    return [pscustomobject]@{ data = $global:CodexLbTestModels }
 }
 
 try {
