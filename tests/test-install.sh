@@ -12,15 +12,15 @@ else
   profile="$test_root/home/.profile"
 fi
 
-cat > "$test_root/bin/codex" <<'EOF'
+cat > "$test_root/bin/codex" <<'EOF_CODEX'
 #!/usr/bin/env bash
 case "${1:-}" in
   --version) printf '%s\n' 'codex-cli test' ;;
   update|doctor|app) exit 0 ;;
 esac
-EOF
+EOF_CODEX
 
-cat > "$test_root/bin/curl" <<'EOF'
+cat > "$test_root/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
 output=""
 while (($#)); do
@@ -31,30 +31,33 @@ while (($#)); do
   esac
 done
 [[ -n "$output" ]] || exit 2
-printf '%s\n' '{"data":[{"id":"gpt-5.6-luna"},{"id":"gpt-5.6-terra"}]}' > "$output"
-printf '200'
-EOF
+models_json="${TEST_MODELS:-}"
+[[ -n "$models_json" ]] || models_json='{"data":[{"id":"gpt-6-astra","object":"model","service_tiers":[{"id":"priority"}]},{"id":"gpt-reserve","object":"model"},{"id":"gpt-5.6-luna","object":"model"},{"id":"gpt-5.6-terra","object":"model"},{"id":"gpt-5.5","object":"model"},{"id":"codex-auto-review","object":"model"}]}'
+printf '%s\n' "$models_json" > "$output"
+printf '%s' '200'
+EOF_CURL
 
-cat > "$test_root/bin/launchctl" <<'EOF'
+cat > "$test_root/bin/launchctl" <<'EOF_LAUNCHCTL'
 #!/usr/bin/env bash
 exit 0
-EOF
+EOF_LAUNCHCTL
 
 chmod 700 "$test_root/bin/codex" "$test_root/bin/curl" \
   "$test_root/bin/launchctl"
 
-cat > "$test_root/home/.codex/config.toml" <<'EOF'
+cat > "$test_root/home/.codex/config.toml" <<'EOF_CONFIG'
 sandbox_mode = "workspace-write"
 model = "old-model"
 model_provider = "old-provider"
+model_catalog_json = "/tmp/old-provider-models.json"
 
 [projects."/tmp/example"]
 trust_level = "trusted"
-EOF
+EOF_CONFIG
 
-cat > "$profile" <<'EOF'
+cat > "$profile" <<'EOF_PROFILE'
 export EXAMPLE_SETTING=preserved
-EOF
+EOF_PROFILE
 
 run_installer() {
   HOME="$test_root/home" \
@@ -72,6 +75,7 @@ key_file="$test_root/home/.codex/codex-lb-api-key"
 
 [[ "$(grep -c '^\[model_providers\.codex-lb\]$' "$config")" -eq 1 ]]
 [[ "$(grep -c '^model = "gpt-5.6-luna"$' "$config")" -eq 1 ]]
+[[ "$(grep -c '^model_catalog_json = ' "$config")" -eq 0 ]]
 [[ "$(grep -c '^# BEGIN CODEX-LB MANAGED$' "$profile")" -eq 1 ]]
 grep -q '^sandbox_mode = "workspace-write"$' "$config"
 grep -q '^\[projects\."/tmp/example"\]$' "$config"

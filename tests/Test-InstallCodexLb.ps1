@@ -20,6 +20,7 @@ function Assert-True([bool]$Condition, [string]$Message) {
 $tokens = $null
 $errors = $null
 $installerAst = [System.Management.Automation.Language.Parser]::ParseFile($installer, [ref]$tokens, [ref]$errors)
+Assert-True ($errors.Count -eq 0) "Installer has PowerShell syntax errors"
 $compatibilityFunction = $installerAst.Find({
     param($node)
     $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
@@ -28,6 +29,15 @@ $compatibilityFunction = $installerAst.Find({
 Assert-True ($null -ne $compatibilityFunction) "Architecture compatibility function was not found"
 . ([scriptblock]::Create($compatibilityFunction.Extent.Text))
 
+$script:TestModels = @(
+    [pscustomobject]@{ id = "gpt-6-astra" },
+    [pscustomobject]@{ id = "gpt-reserve" },
+    [pscustomobject]@{ id = "gpt-5.6-luna" },
+    [pscustomobject]@{ id = "gpt-5.6-terra" },
+    [pscustomobject]@{ id = "gpt-5.5" },
+    [pscustomobject]@{ id = "codex-auto-review" }
+)
+
 function global:Invoke-RestMethod {
     [CmdletBinding()]
     param(
@@ -35,12 +45,7 @@ function global:Invoke-RestMethod {
         [hashtable]$Headers,
         [int]$TimeoutSec
     )
-    return [pscustomobject]@{
-        data = @(
-            [pscustomobject]@{ id = "gpt-5.6-luna" },
-            [pscustomobject]@{ id = "gpt-5.6-terra" }
-        )
-    }
+    return [pscustomobject]@{ data = $script:TestModels }
 }
 
 try {
@@ -64,6 +69,10 @@ try {
         "@echo off`r`nif `"%~1`"==`"--version`" echo codex-cli test`r`nexit /b 0`r`n",
         [Text.Encoding]::ASCII
     )
+    [IO.File]::WriteAllText(
+        (Join-Path $codexHome "config.toml"),
+        "sandbox_mode = `"workspace-write`"`r`nmodel = `"old-model`"`r`nmodel_provider = `"old-provider`"`r`nmodel_catalog_json = `"C:\\old\\models.json`"`r`n"
+    )
 
     $env:CODEX_HOME = $codexHome
     $env:CODEX_LB_API_KEY = "test-secret"
@@ -78,6 +87,7 @@ try {
 
     Assert-True (([regex]::Matches($config, '(?m)^\[model_providers\.codex-lb\]\r?$')).Count -eq 1) "Provider block is not idempotent"
     Assert-True (([regex]::Matches($config, '(?m)^model = "gpt-5.6-luna"\r?$')).Count -eq 1) "Default model is incorrect"
+    Assert-True (([regex]::Matches($config, '(?m)^model_catalog_json = .*\r?$')).Count -eq 0) "Unexpected static model catalog path"
     Assert-True ($config -match '(?m)^requires_openai_auth = false\r?$') "OpenAI login must not be required"
     Assert-True (([IO.File]::ReadAllText($keyPath)).Trim() -eq "test-secret") "Key file is incorrect"
     Assert-True ((Get-ChildItem -Path $codexHome -Filter "config.toml.backup-*" -File).Count -ge 1) "Config backup was not created"

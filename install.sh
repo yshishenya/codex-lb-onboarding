@@ -61,8 +61,31 @@ find_macos_desktop() {
     "/Applications/Codex.app" \
     "$HOME/Applications/ChatGPT.app" \
     "$HOME/Applications/Codex.app"; do
-    [[ -d "$app" ]] && { printf '%s\n' "$app"; return; }
+    [[ -d "$app" && -f "$app/Contents/Info.plist" ]] && { printf '%s\n' "$app"; return; }
   done
+}
+
+wait_for_macos_desktop() {
+  local path
+  for _ in {1..30}; do
+    path="$(find_macos_desktop || true)"
+    if [[ -n "$path" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+ensure_macos_desktop() {
+  [[ -n "$desktop_path" ]] && return 0
+  [[ -n "$codex_bin" ]] || die "Codex Desktop is not installed and Codex CLI is unavailable to install it"
+  printf 'Opening the official Codex Desktop installer...\n'
+  "$codex_bin" app "$PWD" || die "The official Codex Desktop installer could not be started"
+  desktop_path="$(wait_for_macos_desktop || true)"
+  [[ -n "$desktop_path" ]] || die "Codex Desktop installation was not confirmed; finish the installer and rerun this command"
+  printf 'Codex Desktop installed: %s\n' "$desktop_path"
 }
 
 desktop_version() {
@@ -151,6 +174,14 @@ elif [[ -z "$desktop_path" || "$os_name" == "Linux" ]]; then
 fi
 codex_bin="$(find_codex_cli || true)"
 
+if [[ "$os_name" != "Darwin" || -z "$desktop_path" ]]; then
+  [[ -n "$codex_bin" ]] || die "Codex CLI installation was not confirmed"
+fi
+
+if [[ "$os_name" == "Darwin" && "$no_desktop" -eq 0 ]]; then
+  ensure_macos_desktop
+fi
+
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 mkdir -p "$codex_home"
 umask 077
@@ -178,11 +209,9 @@ case "$http_code" in
   401|403) die "Codex-LB rejected the API key (HTTP $http_code)" ;;
   *) die "Codex-LB model check failed (HTTP ${http_code:-network error})" ;;
 esac
-for required_model in gpt-5.6-luna gpt-5.6-terra; do
-  grep -Eq '"id"[[:space:]]*:[[:space:]]*"'"$required_model"'"' "$models_tmp" \
-    || die "Codex-LB model catalog does not contain $required_model"
-done
-printf 'Codex-LB key and Luna/Terra model catalog: OK\n'
+grep -Eq '"data"[[:space:]]*:[[:space:]]*\[' "$models_tmp" \
+  || die "Codex-LB model catalog has no data array"
+printf 'Codex-LB key and model catalog: OK\n'
 
 key_tmp="$(mktemp "$codex_home/.codex-lb-api-key.XXXXXX")"
 printf '%s\n' "$CODEX_LB_API_KEY" > "$key_tmp"
@@ -202,7 +231,7 @@ if [[ -f "$config_path" ]]; then
     provider { next }
     /^[[:space:]]*\[/ { in_top = 0 }
     NR == 1 { in_top = 1 }
-    in_top && /^[[:space:]]*(model|review_model|model_provider)[[:space:]]*=/ { next }
+    in_top && /^[[:space:]]*(model|review_model|model_provider|model_catalog_json)[[:space:]]*=/ { next }
     { print }
   ' "$config_path" > "$config_clean"
 else
@@ -285,11 +314,11 @@ if [[ -n "$codex_bin" ]]; then
 fi
 
 if [[ "$os_name" == "Darwin" && "$no_desktop" -eq 0 ]]; then
-  if [[ -n "$desktop_path" ]]; then
-    open "$desktop_path"
-  elif [[ -n "$codex_bin" ]]; then
-    "$codex_bin" app "$PWD" || printf 'Warning: Desktop installer did not start.\n' >&2
-  fi
+  open "$desktop_path" || die "Codex Desktop could not be opened"
 fi
 
-printf 'Setup complete. Fully restart Codex Desktop so it inherits the new provider environment.\n'
+if ((no_desktop)); then
+  printf 'Setup complete. Codex-LB configured; Desktop installation and launch were skipped.\n'
+else
+  printf 'Setup complete. Fully restart Codex Desktop so it inherits the new provider environment.\n'
+fi

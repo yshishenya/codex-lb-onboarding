@@ -69,6 +69,19 @@ function Find-CodexDesktop {
     return @($results | Sort-Object Kind, Path -Unique)
 }
 
+function Find-UsableCodexDesktop {
+    return @(Find-CodexDesktop | Where-Object { $_.Kind -eq "Executable" -or $_.Kind -eq "Appx" })
+}
+
+function Wait-ForCodexDesktop([int]$Attempts = 30) {
+    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+        $desktop = @(Find-UsableCodexDesktop)
+        if ($desktop.Count -gt 0) { return $desktop }
+        Start-Sleep -Seconds 2
+    }
+    return @()
+}
+
 function Backup-File([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
     $backup = "$Path.backup-$(Get-Date -Format yyyyMMdd-HHmmss)"
@@ -136,13 +149,17 @@ function Install-OrUpdate-CodexDesktop([bool]$AlreadyInstalled) {
         Write-Warning "Microsoft Store did not finish within 10 minutes"
         return $false
     }
-    if ($process.ExitCode -eq 0) { return $true }
+    if ($process.ExitCode -eq 0) {
+        if (@(Wait-ForCodexDesktop).Count -gt 0) { return $true }
+        Write-Warning "Microsoft Store reported success, but Codex Desktop was not found"
+        return $false
+    }
     if ($AlreadyInstalled) {
         Write-Host "No newer Codex Desktop package is available."
         return $true
     }
 
-    Write-Warning "Microsoft Store installation was unavailable; using the official Codex app installer"
+    Write-Warning "Microsoft Store installation was unavailable; will try the official Codex app installer"
     return $false
 }
 
@@ -174,6 +191,9 @@ if ($codex) {
     Install-CodexCli
 }
 $codex = Find-CodexCli
+if ($desktop.Count -eq 0 -and -not $codex -and $NoDesktop) {
+    Fail "Codex CLI installation was not confirmed"
+}
 
 $codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) { Join-Path $HOME ".codex" } else { $env:CODEX_HOME }
 New-Item -ItemType Directory -Force -Path $codexHome | Out-Null
@@ -199,11 +219,9 @@ try {
     if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -in 401, 403) { Fail "Codex-LB rejected the API key" }
     Fail "Codex-LB model check failed: $($_.Exception.Message)"
 }
-$modelIds = @($models.data | ForEach-Object { $_.id })
-foreach ($required in @("gpt-5.6-luna", "gpt-5.6-terra")) {
-    if ($required -notin $modelIds) { Fail "Codex-LB model catalog does not contain $required" }
-}
-Write-Host "Codex-LB key and Luna/Terra model catalog: OK"
+$modelIds = @($models.data | ForEach-Object { [string]$_.id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+if ($modelIds.Count -eq 0) { Fail "Codex-LB model catalog is empty" }
+Write-Host ("Codex-LB key and model catalog: {0} model(s) available." -f $modelIds.Count)
 
 $utf8 = [Text.UTF8Encoding]::new($false)
 $keyTemp = "$keyPath.$PID.tmp"
@@ -222,7 +240,7 @@ $managedPattern = "(?ms)^" + [regex]::Escape($ManagedStart) + "\r?\n.*?^" + [reg
 $clean = [regex]::Replace($existing, $managedPattern, "")
 $providerPattern = '(?ms)^\s*\[model_providers\.codex-lb\]\s*\r?\n.*?(?=^\s*\[|\z)'
 $clean = [regex]::Replace($clean, $providerPattern, "")
-$topKeys = '(?m)^(model|review_model|model_provider)\s*=.*(?:\r?\n|$)'
+$topKeys = '(?m)^(model|review_model|model_provider|model_catalog_json)\s*=.*(?:\r?\n|$)'
 $clean = [regex]::Replace($clean, $topKeys, "").Trim()
 $providerLines = @(
     ('model = "{0}"' -f $Model),
@@ -254,20 +272,31 @@ if ($codex) {
 }
 
 if (-not $NoDesktop) {
-    $desktopHandled = Install-OrUpdate-CodexDesktop ($desktop.Count -gt 0)
-    $desktop = @(Find-CodexDesktop)
-    if ($desktop.Count -eq 0 -and $codex) {
+    $usableDesktop = @(Find-UsableCodexDesktop)
+    [void](Install-OrUpdate-CodexDesktop ($usableDesktop.Count -gt 0))
+    $usableDesktop = @(Find-UsableCodexDesktop)
+    if ($usableDesktop.Count -eq 0 -and $codex) {
+        Write-Host "Opening the official Codex Desktop installer..."
         & $codex app
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Desktop installer did not start" }
-    } elseif ($desktop.Count -gt 0) {
-        $executable = $desktop | Where-Object { $_.Kind -eq "Executable" } | Select-Object -First 1
-        $appx = $desktop | Where-Object { $_.Kind -eq "Appx" } | Select-Object -First 1
-        if ($executable) { Start-Process -FilePath $executable.Path }
-        elseif ($appx) { Start-Process -FilePath "explorer.exe" -ArgumentList $appx.LaunchPath }
-        elseif ($codex) { & $codex app }
-    } elseif (-not $desktopHandled) {
-        Write-Warning "Install Codex Desktop manually, then rerun this command"
+        if ($LASTEXITCODE -ne 0) { Fail "The official Codex Desktop installer could not be started" }
+        $usableDesktop = @(Wait-ForCodexDesktop)
+    }
+    if ($usableDesktop.Count -eq 0) {
+        Fail "Codex Desktop installation was not confirmed; finish the installer and rerun this command"
+    }
+    $executable = $usableDesktop | Where-Object { $_.Kind -eq "Executable" } | Select-Object -First 1
+    $appx = $usableDesktop | Where-Object { $_.Kind -eq "Appx" } | Select-Object -First 1
+    if ($executable) {
+        Start-Process -FilePath $executable.Path
+    } elseif ($appx) {
+        Start-Process -FilePath "explorer.exe" -ArgumentList $appx.LaunchPath
+    } else {
+        Fail "Codex Desktop was found but could not be launched"
     }
 }
 
-Write-Host "Setup complete. Fully restart Codex Desktop so it inherits the new provider environment."
+if ($NoDesktop) {
+    Write-Host "Setup complete. Codex-LB configured; Desktop installation and launch were skipped."
+} else {
+    Write-Host "Setup complete. Fully restart Codex Desktop so it inherits the new provider environment."
+}
