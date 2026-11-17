@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_ENDPOINT="https://cdx.2brain.pro/backend-api/codex"
-DEFAULT_MODELS_URL="https://cdx.2brain.pro/v1/models"
+DEFAULT_ENDPOINT="https://cpa.2brain.pro/v1"
+DEFAULT_MODELS_URL="https://cpa.2brain.pro/v1/models"
 DEFAULT_MODEL="gpt-5.6-luna"
 MANAGED_START="# BEGIN CODEX-LB MANAGED"
 MANAGED_END="# END CODEX-LB MANAGED"
@@ -249,7 +249,7 @@ config_new="$(mktemp "$codex_home/.config.new.XXXXXX")"
   printf 'name = "openai"\n'
   printf 'base_url = "%s"\n' "${endpoint%/}"
   printf 'wire_api = "responses"\n'
-  printf 'supports_websockets = true\n'
+  printf 'supports_websockets = false\n'
   printf 'requires_openai_auth = false\n'
   printf 'env_key = "CODEX_LB_API_KEY"\n'
   printf '%s\n' "$MANAGED_END"

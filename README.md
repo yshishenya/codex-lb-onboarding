@@ -5,8 +5,10 @@
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows)](#windows)
 [![macOS](https://img.shields.io/badge/macOS-поддерживается-000000?logo=apple)](#macos)
 
-Этот установщик подключает **Codex Desktop или Codex CLI** к Codex-LB.
+Этот установщик подключает **Codex Desktop или Codex CLI** к серверу CPA.
 Нужно выполнить одну команду и один раз ввести выданный вам ключ.
+**Входить в аккаунт OpenAI или ChatGPT внутри Codex не нужно.**
+Ранее выданные ключи Codex-LB продолжают работать.
 
 ## Выберите вашу систему
 
@@ -57,8 +59,8 @@ irm https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/I
 ### Шаг 4. Перезапустите Codex
 
 Дождитесь сообщения `Setup complete`. Полностью закройте Codex Desktop и
-откройте его снова. В списке появятся все модели, доступные вашему ключу
-Codex-LB.
+откройте его снова. В списке появятся модели сервера CPA. Вход в OpenAI или
+ChatGPT не требуется.
 
 Готово — окно PowerShell можно закрыть.
 
@@ -101,7 +103,7 @@ curl -fsSL https://github.com/yshishenya/codex-lb-onboarding/releases/latest/dow
 
 Дождитесь сообщения `Setup complete`. Полностью закройте Codex сочетанием
 <kbd>Command</kbd> + <kbd>Q</kbd>, затем откройте его снова. В списке появятся
-все модели, доступные вашему ключу Codex-LB.
+модели сервера CPA. Вход в OpenAI или ChatGPT не требуется.
 
 Готово — Терминал можно закрыть.
 
@@ -129,10 +131,10 @@ curl -fsSL https://github.com/yshishenya/codex-lb-onboarding/releases/latest/dow
    используется Microsoft Store через `winget`, затем при необходимости
    запускается официальный установщик командой `codex app`. На macOS при
    отсутствии приложения также запускается официальный установщик `codex app`.
-6. Проверяет ключ и получает список моделей через Codex-LB.
+6. Проверяет ключ и получает список моделей через CPA.
 7. Создаёт резервную копию существующих настроек.
-8. Настраивает Codex-LB и безопасно сохраняет переменную
-   `CODEX_LB_API_KEY` для текущего пользователя.
+8. Настраивает подключение к CPA без входа в OpenAI и безопасно сохраняет
+   переменную `CODEX_LB_API_KEY` для текущего пользователя.
 9. Запускает Codex Desktop после подтверждения его установки.
 
 Установщик не заменяет файлы Codex Desktop вручную и не нарушает цифровую
@@ -142,6 +144,10 @@ curl -fsSL https://github.com/yshishenya/codex-lb-onboarding/releases/latest/dow
 пропускает установку и запуск Desktop.
 
 ## Повторный запуск и обновление
+
+Для перехода со старого сервера `cdx.2brain.pro` на CPA запустите ту же
+команду ещё раз и используйте сохранённый ключ. Вручную редактировать настройки
+не нужно.
 
 Эту же команду можно запустить повторно. Установщик снова проверит Codex,
 обновит CLI и аккуратно обновит настройки. Старый файл настроек сохранится
@@ -176,10 +182,11 @@ irm https://github.com/yshishenya/codex-lb-onboarding/releases/latest/download/I
 
 Установщик использует:
 
-- endpoint Codex: `https://cdx.2brain.pro/backend-api/codex`;
-- каталог моделей: `https://cdx.2brain.pro/v1/models`;
+- endpoint Codex: `https://cpa.2brain.pro/v1`;
+- каталог моделей: `https://cpa.2brain.pro/v1/models`;
 - провайдер: `codex-lb`;
-- API: `responses`;
+- API: `responses`, потоковые ответы по HTTP (`supports_websockets = false`);
+- вход в OpenAI: не требуется (`requires_openai_auth = false`);
 - модель по умолчанию: `gpt-5.6-luna`;
 - переменную: `CODEX_LB_API_KEY`;
 - конфигурацию: `~/.codex/config.toml`.

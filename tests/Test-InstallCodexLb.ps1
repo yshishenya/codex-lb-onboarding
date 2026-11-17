@@ -45,6 +45,8 @@ function global:Invoke-RestMethod {
         [hashtable]$Headers,
         [int]$TimeoutSec
     )
+    Assert-True ($Uri -eq "https://cpa.2brain.pro/v1/models") "Unexpected model catalog URL"
+    Assert-True ($Headers.Authorization -eq "Bearer test-secret") "Missing API key authentication"
     return [pscustomobject]@{ data = $global:CodexLbTestModels }
 }
 
@@ -71,15 +73,15 @@ try {
     )
     [IO.File]::WriteAllText(
         (Join-Path $codexHome "config.toml"),
-        "sandbox_mode = `"workspace-write`"`r`nmodel = `"old-model`"`r`nmodel_provider = `"old-provider`"`r`nmodel_catalog_json = `"C:\\old\\models.json`"`r`n"
+        "sandbox_mode = `"workspace-write`"`r`nmodel = `"old-model`"`r`nmodel_provider = `"old-provider`"`r`nmodel_catalog_json = `"C:\\old\\models.json`"`r`n`r`n[model_providers.codex-lb]`r`nbase_url = `"https://cdx.2brain.pro/backend-api/codex`"`r`nsupports_websockets = true`r`nrequires_openai_auth = true`r`n"
     )
 
     $env:CODEX_HOME = $codexHome
     $env:CODEX_LB_API_KEY = "test-secret"
     $env:PATH = $binPath + [IO.Path]::PathSeparator + $oldPath
 
-    & $installer -ApiKey "test-secret" -ModelsUrl "https://example.invalid/v1/models" -NoDesktop
-    & $installer -ApiKey "test-secret" -ModelsUrl "https://example.invalid/v1/models" -NoDesktop
+    & $installer -ApiKey "test-secret" -NoDesktop
+    & $installer -ApiKey "test-secret" -NoDesktop
 
     $configPath = Join-Path $codexHome "config.toml"
     $keyPath = Join-Path $codexHome "codex-lb-api-key"
@@ -88,7 +90,12 @@ try {
     Assert-True (([regex]::Matches($config, '(?m)^\[model_providers\.codex-lb\]\r?$')).Count -eq 1) "Provider block is not idempotent"
     Assert-True (([regex]::Matches($config, '(?m)^model = "gpt-5.6-luna"\r?$')).Count -eq 1) "Default model is incorrect"
     Assert-True (([regex]::Matches($config, '(?m)^model_catalog_json = .*\r?$')).Count -eq 0) "Unexpected static model catalog path"
+    Assert-True ($config -match '(?m)^base_url = "https://cpa\.2brain\.pro/v1"\r?$') "CPA endpoint is incorrect"
+    Assert-True ($config -match '(?m)^supports_websockets = false\r?$') "Imported keys require HTTP streaming"
     Assert-True ($config -match '(?m)^requires_openai_auth = false\r?$') "OpenAI login must not be required"
+    Assert-True ($config -match '(?m)^env_key = "CODEX_LB_API_KEY"\r?$') "API key environment is incorrect"
+    Assert-True ($config -notmatch 'cdx\.2brain\.pro|supports_websockets = true|requires_openai_auth = true') "Old connection settings survived migration"
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $codexHome "auth.json"))) "OpenAI login state must not be needed"
     Assert-True (([IO.File]::ReadAllText($keyPath)).Trim() -eq "test-secret") "Key file is incorrect"
     Assert-True ((Get-ChildItem -Path $codexHome -Filter "config.toml.backup-*" -File).Count -ge 1) "Config backup was not created"
 

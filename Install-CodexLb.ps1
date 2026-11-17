@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$ApiKey,
-    [string]$Endpoint = "https://cdx.2brain.pro/backend-api/codex",
-    [string]$ModelsUrl = "https://cdx.2brain.pro/v1/models",
+    [string]$Endpoint = "https://cpa.2brain.pro/v1",
+    [string]$ModelsUrl = "https://cpa.2brain.pro/v1/models",
     [string]$Model = "gpt-5.6-luna",
     [switch]$DryRun,
     [switch]$NoDesktop
@@ -254,7 +254,7 @@ $providerLines = @(
     'name = "openai"',
     ('base_url = "{0}"' -f $Endpoint.TrimEnd('/')),
     'wire_api = "responses"',
-    'supports_websockets = true',
+    'supports_websockets = false',
     'requires_openai_auth = false',
     'env_key = "CODEX_LB_API_KEY"',
     $ManagedEnd

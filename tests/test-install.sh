@@ -22,6 +22,7 @@ EOF_CODEX
 
 cat > "$test_root/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
+request_url="${!#}"
 output=""
 while (($#)); do
   case "$1" in
@@ -30,6 +31,7 @@ while (($#)); do
     *) shift ;;
   esac
 done
+[[ "$request_url" == "https://cpa.2brain.pro/v1/models" ]] || exit 3
 [[ -n "$output" ]] || exit 2
 models_json="${TEST_MODELS:-}"
 [[ -n "$models_json" ]] || models_json='{"data":[{"id":"gpt-6-astra","object":"model","service_tiers":[{"id":"priority"}]},{"id":"gpt-reserve","object":"model"},{"id":"gpt-5.6-luna","object":"model"},{"id":"gpt-5.6-terra","object":"model"},{"id":"gpt-5.5","object":"model"},{"id":"codex-auto-review","object":"model"}]}'
@@ -50,6 +52,11 @@ sandbox_mode = "workspace-write"
 model = "old-model"
 model_provider = "old-provider"
 model_catalog_json = "/tmp/old-provider-models.json"
+
+[model_providers.codex-lb]
+base_url = "https://cdx.2brain.pro/backend-api/codex"
+supports_websockets = true
+requires_openai_auth = true
 
 [projects."/tmp/example"]
 trust_level = "trusted"
@@ -79,7 +86,15 @@ key_file="$test_root/home/.codex/codex-lb-api-key"
 [[ "$(grep -c '^# BEGIN CODEX-LB MANAGED$' "$profile")" -eq 1 ]]
 grep -q '^sandbox_mode = "workspace-write"$' "$config"
 grep -q '^\[projects\."/tmp/example"\]$' "$config"
+grep -q '^base_url = "https://cpa.2brain.pro/v1"$' "$config"
+grep -q '^supports_websockets = false$' "$config"
 grep -q '^requires_openai_auth = false$' "$config"
+grep -q '^env_key = "CODEX_LB_API_KEY"$' "$config"
+if grep -Eq 'cdx\.2brain\.pro|supports_websockets = true|requires_openai_auth = true' "$config"; then
+  printf '%s\n' 'Old server or authentication settings survived migration' >&2
+  exit 1
+fi
+[[ ! -e "$test_root/home/.codex/auth.json" ]]
 grep -q '^export EXAMPLE_SETTING=preserved$' "$profile"
 [[ "$(tr -d '\r\n' < "$key_file")" == "test-secret" ]]
 if [[ "$(uname -s)" == "Darwin" ]]; then
