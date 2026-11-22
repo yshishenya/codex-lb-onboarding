@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Нужен ключ или доступ к сервису
+    url: https://github.com/yshishenya/codex-lb-onboarding#где-взять-ключ
+    about: Ключи выдаёт администратор вашего сервиса, а не этот репозиторий.
+  - name: Сообщить об уязвимости
+    url: https://github.com/yshishenya/codex-lb-onboarding/security/advisories/new
+    about: Об уязвимостях сообщайте закрыто, не через публичный issue.

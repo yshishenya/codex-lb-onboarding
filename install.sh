@@ -67,7 +67,8 @@ find_macos_desktop() {
 
 wait_for_macos_desktop() {
   local path
-  for _ in {1..30}; do
+  # Up to 5 minutes: the user may need time to finish the official installer.
+  for _ in {1..150}; do
     path="$(find_macos_desktop || true)"
     if [[ -n "$path" ]]; then
       printf '%s\n' "$path"
@@ -201,9 +202,15 @@ fi
 [[ "$CODEX_LB_API_KEY" != *$'\n'* && "$CODEX_LB_API_KEY" != *$'\r'* ]] || die "API key contains a newline"
 
 models_tmp="$(mktemp "${TMPDIR:-/tmp}/codex-lb-models.XXXXXX")"
-trap 'rm -f "$models_tmp"' EXIT
+# Pass the key through a private header file, not the curl command line,
+# so other local users cannot read it from the process list.
+auth_header_tmp="$(mktemp "${TMPDIR:-/tmp}/codex-lb-auth.XXXXXX")"
+trap 'rm -f "$models_tmp" "$auth_header_tmp"' EXIT
+chmod 600 "$auth_header_tmp"
+printf 'Authorization: Bearer %s\n' "$CODEX_LB_API_KEY" > "$auth_header_tmp"
 http_code="$(curl -sS -o "$models_tmp" -w '%{http_code}' --connect-timeout 10 --max-time 30 \
-  -H "Authorization: Bearer $CODEX_LB_API_KEY" "$models_url" || true)"
+  -H "@$auth_header_tmp" "$models_url" || true)"
+rm -f "$auth_header_tmp"
 case "$http_code" in
   2[0-9][0-9]) ;;
   401|403) die "Codex-LB rejected the API key (HTTP $http_code)" ;;
@@ -223,6 +230,7 @@ backup_file "$config_path"
 config_clean="$(mktemp "$codex_home/.config.clean.XXXXXX")"
 if [[ -f "$config_path" ]]; then
   awk -v start="$MANAGED_START" -v end="$MANAGED_END" '
+    BEGIN { in_top = 1 }
     $0 == start { managed = 1; next }
     $0 == end { managed = 0; next }
     managed { next }
@@ -230,7 +238,6 @@ if [[ -f "$config_path" ]]; then
     provider && /^[[:space:]]*\[/ { provider = 0 }
     provider { next }
     /^[[:space:]]*\[/ { in_top = 0 }
-    NR == 1 { in_top = 1 }
     in_top && /^[[:space:]]*(model|review_model|model_provider|model_catalog_json)[[:space:]]*=/ { next }
     { print }
   ' "$config_path" > "$config_clean"
@@ -252,6 +259,7 @@ config_new="$(mktemp "$codex_home/.config.new.XXXXXX")"
   printf 'supports_websockets = false\n'
   printf 'requires_openai_auth = false\n'
   printf 'env_key = "CODEX_LB_API_KEY"\n'
+  printf 'model_catalog_url = "%s"\n' "$models_url"
   printf '%s\n' "$MANAGED_END"
 } > "$config_new"
 rm -f "$config_clean"

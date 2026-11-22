@@ -1,0 +1,46 @@
+name: Установщик не сработал
+description: Сообщить об ошибке при установке или настройке Codex
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!WARNING]
+        > **Никогда не вставляйте сюда ваш ключ.** Этот issue увидят все.
+        > Установщик не печатает ключ, поэтому текст ошибки обычно безопасен,
+        > но всё равно проверьте его перед отправкой.
+
+        Сначала посмотрите раздел [«Если что-то пошло не так»](https://github.com/yshishenya/codex-lb-onboarding#если-что-то-пошло-не-так) в README.
+  - type: dropdown
+    id: system
+    attributes:
+      label: Ваша система
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Что вы делали
+      description: Коротко опишите шаги. Например «Вставил команду в PowerShell, ввёл ключ».
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Текст из окна PowerShell или Терминала
+      description: Скопируйте весь текст, который вывел установщик. Без ключа.
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Проверка
+      options:
+        - label: Я проверил, что в тексте нет моего ключа.
+          required: true

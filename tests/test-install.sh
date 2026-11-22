@@ -24,15 +24,24 @@ cat > "$test_root/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
 request_url="${!#}"
 output=""
+header_ok=0
+for arg in "$@"; do
+  # The API key must never appear on the curl command line.
+  [[ "$arg" != *test-secret* ]] || exit 4
+done
 while (($#)); do
   case "$1" in
     -o) output="$2"; shift 2 ;;
+    -H)
+      [[ "$2" == @* ]] && grep -qx 'Authorization: Bearer test-secret' "${2#@}" && header_ok=1
+      shift 2 ;;
     -w) shift 2 ;;
     *) shift ;;
   esac
 done
 [[ "$request_url" == "https://cpa.2brain.pro/v1/models" ]] || exit 3
 [[ -n "$output" ]] || exit 2
+((header_ok)) || exit 5
 models_json="${TEST_MODELS:-}"
 [[ -n "$models_json" ]] || models_json='{"data":[{"id":"gpt-6-astra","object":"model","service_tiers":[{"id":"priority"}]},{"id":"gpt-reserve","object":"model"},{"id":"gpt-5.6-luna","object":"model"},{"id":"gpt-5.6-terra","object":"model"},{"id":"gpt-5.5","object":"model"},{"id":"codex-auto-review","object":"model"}]}'
 printf '%s\n' "$models_json" > "$output"
@@ -60,6 +69,10 @@ requires_openai_auth = true
 
 [projects."/tmp/example"]
 trust_level = "trusted"
+
+[profiles.fast]
+model = "o4-mini"
+review_model = "o4-mini"
 EOF_CONFIG
 
 cat > "$profile" <<'EOF_PROFILE'
@@ -67,8 +80,9 @@ export EXAMPLE_SETTING=preserved
 EOF_PROFILE
 
 run_installer() {
-  HOME="$test_root/home" \
-  CODEX_HOME="$test_root/home/.codex" \
+  local home="${1:-$test_root/home}"
+  HOME="$home" \
+  CODEX_HOME="$home/.codex" \
   CODEX_LB_API_KEY="test-secret" \
   PATH="$test_root/bin:$PATH" \
     bash "$repo_dir/install.sh" --no-desktop
@@ -90,6 +104,7 @@ grep -q '^base_url = "https://cpa.2brain.pro/v1"$' "$config"
 grep -q '^supports_websockets = false$' "$config"
 grep -q '^requires_openai_auth = false$' "$config"
 grep -q '^env_key = "CODEX_LB_API_KEY"$' "$config"
+grep -q '^model_catalog_url = "https://cpa.2brain.pro/v1/models"$' "$config"
 if grep -Eq 'cdx\.2brain\.pro|supports_websockets = true|requires_openai_auth = true' "$config"; then
   printf '%s\n' 'Old server or authentication settings survived migration' >&2
   exit 1
@@ -105,5 +120,21 @@ fi
 [[ "$key_mode" == "600" ]]
 find "$test_root/home/.codex" -maxdepth 1 -name 'config.toml.backup-*' \
   -type f | grep -q .
+# Settings inside [profiles.*] belong to the user and must survive.
+grep -A2 '^\[profiles\.fast\]$' "$config" | grep -qx 'model = "o4-mini"'
+grep -A2 '^\[profiles\.fast\]$' "$config" | grep -qx 'review_model = "o4-mini"'
+
+# A config that starts directly with a [table] must keep that table's keys.
+table_home="$test_root/table-home"
+mkdir -p "$table_home/.codex"
+cat > "$table_home/.codex/config.toml" <<'EOF_TABLE_CONFIG'
+[profiles.fast]
+model = "o4-mini"
+sandbox_mode = "read-only"
+EOF_TABLE_CONFIG
+run_installer "$table_home"
+table_config="$table_home/.codex/config.toml"
+grep -A2 '^\[profiles\.fast\]$' "$table_config" | grep -qx 'model = "o4-mini"'
+[[ "$(grep -c '^model = "gpt-5.6-luna"$' "$table_config")" -eq 1 ]]
 
 printf '%s\n' 'Shell installer self-test: OK'
