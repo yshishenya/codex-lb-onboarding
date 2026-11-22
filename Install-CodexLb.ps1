@@ -73,7 +73,8 @@ function Find-UsableCodexDesktop {
     return @(Find-CodexDesktop | Where-Object { $_.Kind -eq "Executable" -or $_.Kind -eq "Appx" })
 }
 
-function Wait-ForCodexDesktop([int]$Attempts = 30) {
+# Up to 5 minutes: the user may need time to finish the official installer.
+function Wait-ForCodexDesktop([int]$Attempts = 150) {
     for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
         $desktop = @(Find-UsableCodexDesktop)
         if ($desktop.Count -gt 0) { return $desktop }
@@ -240,8 +241,18 @@ $managedPattern = "(?ms)^" + [regex]::Escape($ManagedStart) + "\r?\n.*?^" + [reg
 $clean = [regex]::Replace($existing, $managedPattern, "")
 $providerPattern = '(?ms)^\s*\[model_providers\.codex-lb\]\s*\r?\n.*?(?=^\s*\[|\z)'
 $clean = [regex]::Replace($clean, $providerPattern, "")
+# Remove managed keys only from the top level, before the first [table].
+# Keys with the same names inside [profiles.*] and other tables belong to the user.
 $topKeys = '(?m)^(model|review_model|model_provider|model_catalog_json)\s*=.*(?:\r?\n|$)'
-$clean = [regex]::Replace($clean, $topKeys, "").Trim()
+$firstTable = [regex]::Match($clean, '(?m)^[ \t]*\[')
+if ($firstTable.Success) {
+    $topLevel = $clean.Substring(0, $firstTable.Index)
+    $tables = $clean.Substring($firstTable.Index)
+} else {
+    $topLevel = $clean
+    $tables = ""
+}
+$clean = ([regex]::Replace($topLevel, $topKeys, "") + $tables).Trim()
 $providerLines = @(
     ('model = "{0}"' -f $Model),
     ('review_model = "{0}"' -f $Model),

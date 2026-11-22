@@ -4,23 +4,37 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   shell:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - name: Syntax
         run: bash -n install.sh
+      - name: ShellCheck
+        if: runner.os == 'Linux'
+        run: shellcheck install.sh tests/test-install.sh
       - name: Dry run
         run: bash install.sh --dry-run --no-desktop
+      - name: Dry run through a pipe, as in README
+        run: cat install.sh | bash -s -- --dry-run --no-desktop
       - name: Isolated setup and idempotency
         run: bash tests/test-install.sh
 
   powershell-51:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - name: Parse, dry run, and isolated setup
@@ -42,8 +56,20 @@ jobs:
 
   powershell-7:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+      - name: PSScriptAnalyzer (errors only)
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) {
+            Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          }
+          $issues = @(Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error)
+          if ($issues.Count) {
+            $issues | Format-Table -AutoSize | Out-String | Write-Error
+            exit 1
+          }
       - name: Parse, dry run, and isolated setup
         shell: pwsh
         run: |
