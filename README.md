@@ -322,6 +322,8 @@ sed -i '' '/^# BEGIN CODEX-LB MANAGED$/,/^# END CODEX-LB MANAGED$/d' ~/.zshrc
 - вход в OpenAI: не требуется (`requires_openai_auth = false`);
 - модель по умолчанию: `gpt-5.6-luna` (`model` и `review_model`);
 - переменную: `CODEX_LB_API_KEY`;
+- каталог моделей: та же ссылка в `model_catalog_url`, чтобы Codex знал уровни
+  рассуждений и другие свойства моделей сервера;
 - конфигурацию: `~/.codex/config.toml` или `$CODEX_HOME/config.toml`.
 
 Установщик меняет только ключи `model`, `review_model` и `model_provider` на

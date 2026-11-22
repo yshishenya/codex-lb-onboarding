@@ -259,6 +259,7 @@ config_new="$(mktemp "$codex_home/.config.new.XXXXXX")"
   printf 'supports_websockets = false\n'
   printf 'requires_openai_auth = false\n'
   printf 'env_key = "CODEX_LB_API_KEY"\n'
+  printf 'model_catalog_url = "%s"\n' "$models_url"
   printf '%s\n' "$MANAGED_END"
 } > "$config_new"
 rm -f "$config_clean"

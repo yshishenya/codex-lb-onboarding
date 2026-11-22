@@ -94,6 +94,7 @@ try {
     Assert-True ($config -match '(?m)^supports_websockets = false\r?$') "Imported keys require HTTP streaming"
     Assert-True ($config -match '(?m)^requires_openai_auth = false\r?$') "OpenAI login must not be required"
     Assert-True ($config -match '(?m)^env_key = "CODEX_LB_API_KEY"\r?$') "API key environment is incorrect"
+    Assert-True ($config -match '(?m)^model_catalog_url = "https://cpa\.2brain\.pro/v1/models"\r?$') "Model catalog URL is incorrect"
     Assert-True ($config -notmatch 'cdx\.2brain\.pro|supports_websockets = true|requires_openai_auth = true') "Old connection settings survived migration"
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $codexHome "auth.json"))) "OpenAI login state must not be needed"
     Assert-True (([IO.File]::ReadAllText($keyPath)).Trim() -eq "test-secret") "Key file is incorrect"

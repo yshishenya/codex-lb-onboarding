@@ -268,6 +268,7 @@ $providerLines = @(
     'supports_websockets = false',
     'requires_openai_auth = false',
     'env_key = "CODEX_LB_API_KEY"',
+    ('model_catalog_url = "{0}"' -f $ModelsUrl),
     $ManagedEnd
 )
 $newConfig = (($providerLines | Where-Object { $null -ne $_ }) -join [Environment]::NewLine).Trim() + [Environment]::NewLine

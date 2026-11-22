@@ -104,6 +104,7 @@ grep -q '^base_url = "https://cpa.2brain.pro/v1"$' "$config"
 grep -q '^supports_websockets = false$' "$config"
 grep -q '^requires_openai_auth = false$' "$config"
 grep -q '^env_key = "CODEX_LB_API_KEY"$' "$config"
+grep -q '^model_catalog_url = "https://cpa.2brain.pro/v1/models"$' "$config"
 if grep -Eq 'cdx\.2brain\.pro|supports_websockets = true|requires_openai_auth = true' "$config"; then
   printf '%s\n' 'Old server or authentication settings survived migration' >&2
   exit 1
